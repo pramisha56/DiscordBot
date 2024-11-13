@@ -1,199 +1,104 @@
-const { PermissionsBitField, ChannelType } = require('discord.js');
+require("dotenv").config();
+const { PermissionsBitField } = require('discord.js');
 
-// Store temporary voice channels
-const temporaryVoiceChannels = new Map();
+const handelinteraction = async (interaction) => {
+    try {
+        if (!interaction.isChatInputCommand()) return;
+        
+        if (interaction.commandName === 'create-gaming-category') {
+            
+            const categoryName = interaction.options.getString('game-category-name');
+            await interaction.deferReply();
 
-module.exports = {
-    handelinteraction: async (interaction) => {
-        try {
-            if (!interaction.isChatInputCommand()) return;
 
-            // Handle create-voice-channel command
-            if (interaction.commandName === 'create-voice-channel') {
-                await createBasicVoiceChannel(interaction);
-                return;
+            if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+                return interaction.editReply('I need permission to manage channels to use this command.');
             }
 
-            // Handle voice management commands
-            if (interaction.commandName === 'voice') {
-                const subcommand = interaction.options.getSubcommand();
-                switch (subcommand) {
-                    case 'create':
-                        await createPersonalChannel(interaction);
-                        break;
-                    case 'limit':
-                        await setUserLimit(interaction);
-                        break;
-                    case 'lock':
-                        await lockChannel(interaction);
-                        break;
-                    case 'unlock':
-                        await unlockChannel(interaction);
-                        break;
+            console.log("print");
+            const role = interaction.guild.roles.cache.find(r => r.name === "Developers");
+            if (!role) {
+                return interaction.editReply('Specified role not found.');
+            }
+
+            try {
+                const category = await interaction.guild.channels.create({
+                    name: categoryName,
+                    type: 4,
+                    permissionOverwrites: [
+                        {
+                            id: interaction.guild.roles.everyone.id,
+                            deny: [PermissionsBitField.Flags.ViewChannel],
+                        },
+                        {
+                            id: role.id,
+                            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages],
+                        }
+                    ]
+                });
+
+                const voiceChannels = [];
+
+                for (let i = 1; i <= 8; i++) {
+                    const channel = await interaction.guild.channels.create({
+                        name: `Team ${i}`,
+                        type: 2,
+                        parent: category.id,
+                        permissionOverwrites: [
+                            {
+                                id: interaction.guild.roles.everyone.id,
+                                deny: [PermissionsBitField.Flags.ViewChannel],
+                            },
+                            {
+                                id: role.id,
+                                allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages],
+                            }
+                        ]
+                    });
+
+
+                    voiceChannels.push(channel.name);
                 }
+
+                        
+                const channel1 = await interaction.guild.channels.create({
+                    name: "Test",
+                    type: 0,
+                    parent: category.id,
+                    permissionOverwrites: [
+                        {
+                            id: interaction.guild.roles.everyone.id,
+                            deny: [PermissionsBitField.Flags.ViewChannel],
+                        },
+                        {
+                            id: role.id,
+                            allow: [
+                                PermissionsBitField.Flags.ViewChannel,
+                                PermissionsBitField.Flags.SendMessages
+                            ],
+                        }
+                    ]
+                });
+
+                await interaction.editReply(
+                    `Category **${category.name}** and voice channels **${voiceChannels.join(", ")}** created successfully!`
+                );
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('There was an error creating the category and channels.');
             }
-        } catch (error) {
-            console.error('Error in voice command:', error);
-            if (!interaction.replied) {
-                await interaction.editReply('There was an error processing your request.');
-            }
+        }
+    } catch (error) {
+        console.error('Error in create-voice-channel command:', error);
+        if (!interaction.replied) {
+            await interaction.reply({
+                content: 'There was an error processing your request.',
+                ephemeral: true
+            });
         }
     }
 };
 
-// Basic voice channel creation
-async function createBasicVoiceChannel(interaction) {
-    await interaction.deferReply();
-    const channelName = interaction.options.getString('name');
-    
-    if (!channelName) {
-        return await interaction.editReply('Please provide a name for the voice channel!');
-    }
-
-    // Check bot permissions
-    if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-        return await interaction.editReply('I need permission to manage channels to use this command.');
-    }
-
-    try {
-        const voiceChannel = await interaction.guild.channels.create({
-            name: channelName,
-            type: ChannelType.GuildVoice,
-            permissionOverwrites: [
-                {
-                    id: interaction.guild.id,
-                    allow: [
-                        PermissionsBitField.Flags.ViewChannel,
-                        PermissionsBitField.Flags.Connect,
-                        PermissionsBitField.Flags.Speak
-                    ]
-                }
-            ]
-        });
-
-        await interaction.editReply(
-            `Voice channel **${voiceChannel.name}** has been created successfully!`
-        );
-    } catch (error) {
-        console.error('Error creating voice channel:', error);
-        await interaction.editReply('There was an error creating the voice channel.');
-    }
-}
-
-// Personal voice channel creation with advanced features
-async function createPersonalChannel(interaction) {
-    await interaction.deferReply();
-    const channelName = interaction.options.getString('name');
-    const userLimit = interaction.options.getInteger('limit') || 0;
-
-    if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-        return await interaction.editReply('I need permission to manage channels to use this command.');
-    }
-
-    try {
-        const voiceChannel = await interaction.guild.channels.create({
-            name: channelName,
-            type: ChannelType.GuildVoice,
-            userLimit: userLimit,
-            permissionOverwrites: [
-                {
-                    id: interaction.guild.id,
-                    allow: [
-                        PermissionsBitField.Flags.ViewChannel,
-                        PermissionsBitField.Flags.Connect,
-                        PermissionsBitField.Flags.Speak
-                    ]
-                },
-                {
-                    id: interaction.user.id,
-                    allow: [
-                        PermissionsBitField.Flags.ManageChannels,
-                        PermissionsBitField.Flags.ManageRoles,
-                        PermissionsBitField.Flags.MoveMembers
-                    ]
-                }
-            ]
-        });
-
-        // Store channel info for management commands
-        temporaryVoiceChannels.set(voiceChannel.id, {
-            ownerId: interaction.user.id,
-            createdAt: Date.now()
-        });
-
-        await interaction.editReply(
-            `Personal voice channel **${voiceChannel.name}** has been created successfully!`
-        );
-    } catch (error) {
-        console.error('Error creating voice channel:', error);
-        await interaction.editReply('There was an error creating the voice channel.');
-    }
-}
-
-async function setUserLimit(interaction) {
-    const limit = interaction.options.getInteger('amount');
-    const channel = interaction.member.voice.channel;
-
-    if (!channel) {
-        return await interaction.reply('You must be in a voice channel to use this command.');
-    }
-
-    const channelInfo = temporaryVoiceChannels.get(channel.id);
-    if (!channelInfo || channelInfo.ownerId !== interaction.user.id) {
-        return await interaction.reply('You can only modify channels you created.');
-    }
-
-    try {
-        await channel.setUserLimit(limit);
-        await interaction.reply(`User limit for **${channel.name}** has been set to ${limit || 'unlimited'}.`);
-    } catch (error) {
-        console.error('Error setting user limit:', error);
-        await interaction.reply('There was an error setting the user limit.');
-    }
-}
-
-async function lockChannel(interaction) {
-    const channel = interaction.member.voice.channel;
-
-    if (!channel) {
-        return await interaction.reply('You must be in a voice channel to use this command.');
-    }
-
-    const channelInfo = temporaryVoiceChannels.get(channel.id);
-    if (!channelInfo || channelInfo.ownerId !== interaction.user.id) {
-        return await interaction.reply('You can only modify channels you created.');
-    }
-
-    try {
-        await channel.permissionOverwrites.edit(interaction.guild.id, {
-            Connect: false
-        });
-        await interaction.reply(`Voice channel **${channel.name}** has been locked.`);
-    } catch (error) {
-        console.error('Error locking channel:', error);
-        await interaction.reply('There was an error locking the channel.');
-    }
-}
-
-async function unlockChannel(interaction) {
-    const channel = interaction.member.voice.channel;
-
-    if (!channel) {
-        return await interaction.reply('You must be in a voice channel to use this command.');
-    }
-
-    const channelInfo = temporaryVoiceChannels.get(channel.id);
-    if (!channelInfo || channelInfo.ownerId !== interaction.user.id) {
-        return await interaction.reply('You can only modify channels you created.');
-    }
-
-    try {
-        await channel.permissionOverwrites.edit(interaction.guild.id, {
-            Connect: null
-        });
-        await interaction.reply(`Voice channel **${channel.name}** has been unlocked.`);
-    } catch (error) {
-        console.error('Error unlocking channel:', error);
-        await interaction.reply('There was an error unlocking the channel.');
-    }
-}
+module.exports = {
+    handelinteraction
+};

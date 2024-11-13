@@ -1,32 +1,28 @@
 require("dotenv").config();
-const fs = require('fs');
-const path = require('path');
+
 const { PermissionsBitField } = require('discord.js');
 
-const { Client, GatewayIntentBits, REST, Routes } = require("discord.js");
 
-
-module.exports = {
-  handelinteraction: async (interaction) => {
+ const handelinteraction = async (interaction) => {
       try {
           if (!interaction.isChatInputCommand()) return;
           if (interaction.commandName === 'create-sub-event-channel') {
               const categoryName = interaction.options.getString('category-name');
               await interaction.deferReply();
 
-              // Check bot permissions
+              
               if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
                   return interaction.editReply('I need permission to manage channels to use this command.');
               }
 
-              // Find moderator role
+              
               const role = interaction.guild.roles.cache.find(r => r.name === "moderators");
               if (!role) {
                   return interaction.editReply('Specified role not found.');
               }
 
               try {
-                  // Create category
+                 
                   const category = await interaction.guild.channels.create({
                       name: categoryName,
                       type: 4,
@@ -45,7 +41,7 @@ module.exports = {
                       ]
                   });
 
-                  // Create Test channel
+                 
                   const channel1 = await interaction.guild.channels.create({
                       name: "Test",
                       type: 0,
@@ -69,7 +65,7 @@ module.exports = {
                       `Category **${category.name}** and channel **${channel1.name}** created successfully!`
                   );
 
-                  // Create General channel
+                  
                   const channel2 = await interaction.guild.channels.create({
                       name: "General",
                       type: 0,
@@ -107,4 +103,8 @@ module.exports = {
           }
       }
   }
-};
+
+
+  module.exports = {
+    handelinteraction
+  }
