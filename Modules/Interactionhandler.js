@@ -15,10 +15,10 @@ const {
 
 
 const subEventManager = require("../src/commands/create-sub-event.js");
-const voiceManager = require("../src/commands/create-voice-channel.js");
+const gmaingCategoryManager = require("../src/commands/create-gaming-category.js");
 require("dotenv").config();
 
-module.exports = async (interaction) => {
+module.exports = async (interaction, client) => {
     try {
       
         if (interaction.isButton()) {
@@ -38,7 +38,7 @@ module.exports = async (interaction) => {
                     break;
                     
                     case 'create-gaming-category':
-                        await voiceManager.handelinteraction(interaction);
+                        await gmaingCategoryManager.handelinteraction(interaction, client);
                         commandHandled = true;
                     break;
 
